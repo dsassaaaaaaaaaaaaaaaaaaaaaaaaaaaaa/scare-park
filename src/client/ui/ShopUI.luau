@@ -68,8 +68,14 @@ local function rebuildSlots()
 					if onPurchase then
 						onPurchase()
 					end
-				elseif result and result.err == "not_enough_coins" then
-					name.Text = `❌ Не хватает монет`
+				elseif result and result.err then
+					local messages: { [string]: string } = {
+						not_enough_coins = "❌ Не хватает монет",
+						sold_out = "⛔ Распродано (жди ротацию)",
+						daily_cap = "📅 Дневной лимит редкости",
+						too_fast = "⏳ Помедленнее…",
+					}
+					name.Text = messages[result.err] or "❌ Ошибка"
 					task.delay(1.5, rebuildSlots)
 				end
 			end,

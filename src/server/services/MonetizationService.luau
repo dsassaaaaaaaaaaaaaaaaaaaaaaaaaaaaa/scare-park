@@ -25,13 +25,24 @@ local productHandlers: { [number]: (player: Player, data: any) -> boolean } = {
 	-- 	end
 	-- 	data.offers.firstPurchaseDone = true
 	-- 	data.offers.ladder = 1
-	-- 	-- TODO: ×2 доход 24ч + скин + бесплатное ускорение
+	-- 	-- Содержимое: скин + 3 жетона ускорения + рамка (economy §4 п.15: БЕЗ «×2 доход» —
+	-- 	-- сила за деньги нарушала ограничение «только время и косметика»)
 	-- 	return true
 	-- end,
-	-- [1234567891] = function(player, data) -- Ускорение фьюжна
+	-- [1234567891] = function(player, data) -- Платное ускорение фьюжна
 	-- 	if data.fusion.finishAt == 0 then
-	-- 		return false -- нечего ускорять — не списываем (вернётся NotProcessedYet? нет: см. ниже)
+	-- 		return false -- нечего ускорять
 	-- 	end
+	-- 	-- Лимит 5 платных скипов/день (economy §4 п.14, защита детской аудитории)
+	-- 	local day = math.floor(os.time() / 86400)
+	-- 	if data.fusionSkipsToday.day ~= day then
+	-- 		data.fusionSkipsToday.day = day
+	-- 		data.fusionSkipsToday.count = 0
+	-- 	end
+	-- 	if data.fusionSkipsToday.count >= GameConfig.Fusion.PaidSkipsPerDay then
+	-- 		return false
+	-- 	end
+	-- 	data.fusionSkipsToday.count += 1
 	-- 	data.fusion.finishAt = 0
 	-- 	return true
 	-- end,

@@ -28,6 +28,10 @@ local MonsterCatalog: { [string]: MonsterDef } = {
 	dark_conductor = { id = "dark_conductor", name = "Дирижёр Тьмы", rarity = "Legendary", scareMechanic = "sync_scream_volley", baseIncome = 20, baseScare = 75 },
 	light_eater = { id = "light_eater", name = "Пожиратель Света", rarity = "Legendary", scareMechanic = "total_darkness_eyes", baseIncome = 20, baseScare = 75 },
 	carousel_master = { id = "carousel_master", name = "Хозяин Карусели", rarity = "Mythic", scareMechanic = "boss_carousel", baseIncome = 50, baseScare = 180 },
+	-- Nightmare-боссы: получаются ТОЛЬКО по секретным рецептам (рецепты — на сервере).
+	-- Имена публичны (игрок владеет и видит), пути получения — нет. Доход по economy §4 п.5.
+	scream_symphony = { id = "scream_symphony", name = "Симфония Криков", rarity = "Nightmare", scareMechanic = "sync_scream_volley", baseIncome = 130, baseScare = 400 },
+	anti_mime = { id = "anti_mime", name = "АнтиМим", rarity = "Nightmare", scareMechanic = "move_when_unseen", baseIncome = 130, baseScare = 400 },
 }
 
 return MonsterCatalog

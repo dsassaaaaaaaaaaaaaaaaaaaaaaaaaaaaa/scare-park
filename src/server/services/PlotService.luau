@@ -45,9 +45,34 @@ function PlotService.GetOwner(plot: Instance): Player?
 	return plotOwners[plot]
 end
 
---- Кол-во доступных слотов: старт 3, растёт гриндом/gamepass (хранить в профиле позже)
-function PlotService.GetSlotCount(_player: Player): number
-	return GameConfig.Plot.StartAttractionSlots
+--- Кол-во доступных слотов: из профиля (старт 3, рост ТОЛЬКО за монеты — economy §4 п.10)
+function PlotService.GetSlotCount(player: Player): number
+	local data = DataService.Get(player)
+	if data == nil then
+		return GameConfig.Plot.StartAttractionSlots
+	end
+	return data.plotSlots or GameConfig.Plot.StartAttractionSlots
+end
+
+--- Купить следующий слот за монеты (лестница цен из конфига)
+function PlotService.BuySlot(player: Player): (boolean, number?, string?)
+	local data = DataService.Get(player)
+	if data == nil then
+		return false, nil, "no_profile"
+	end
+	local nextSlot = (data.plotSlots or GameConfig.Plot.StartAttractionSlots) + 1
+	if nextSlot > GameConfig.Plot.MaxAttractionSlots then
+		return false, nil, "max_slots"
+	end
+	local cost = GameConfig.Plot.SlotCosts[nextSlot]
+	if cost == nil then
+		return false, nil, "no_price"
+	end
+	if not DataService.AddCurrency(player, "coins", -cost) then
+		return false, nil, "not_enough_coins"
+	end
+	data.plotSlots = nextSlot
+	return true, nextSlot, nil
 end
 
 --- Поставить предмет в слот (валидация: слот в диапазоне, не занят)
@@ -144,6 +169,16 @@ function PlotService.Init()
 			return { ok = false, err = "bad_args" }
 		end
 		return { ok = PlotService.AssignMonster(player, slot, monsterUid) }
+	end
+	Remotes.GetFunction(Remotes.Names.BuyPlotSlot).OnServerInvoke = function(player)
+		local ok, slots, err = PlotService.BuySlot(player)
+		if ok then
+			local data = DataService.Get(player)
+			if data then
+				Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
+			end
+		end
+		return { ok = ok, slots = slots, err = err }
 	end
 
 	Players.PlayerAdded:Connect(function(player)

@@ -17,6 +17,7 @@ Remotes.Names = {
 	PlaceItem = "PlaceItem", -- (itemId, slot) → {ok, err?}
 	AssignMonster = "AssignMonster", -- (slot, monsterUid) → {ok, err?}
 	GetSnapshot = "GetSnapshot", -- () → снапшот профиля для HUD (или nil, если грузится)
+	BuyPlotSlot = "BuyPlotSlot", -- () → {ok, slots?, err?} — следующий слот аттракциона за монеты
 	RequestVisit = "RequestVisit", -- () → {ok, hostName?, err?} — визит в случайный чужой парк
 	LeaveVisit = "LeaveVisit", -- () → {ok} — выйти из визита (добровольно, без награды за финиш)
 	-- RemoteEvent (сервер → клиент)
@@ -28,8 +29,17 @@ Remotes.Names = {
 	VisitEnded = "VisitEnded", -- (escaped: boolean, reward: number)
 }
 
-local remoteFunctions =
-	{ "BuyShopSlot", "StartFusion", "ClaimFusion", "PlaceItem", "AssignMonster", "GetSnapshot", "RequestVisit", "LeaveVisit" }
+local remoteFunctions = {
+	"BuyShopSlot",
+	"StartFusion",
+	"ClaimFusion",
+	"PlaceItem",
+	"AssignMonster",
+	"GetSnapshot",
+	"RequestVisit",
+	"LeaveVisit",
+	"BuyPlotSlot",
+}
 
 local function getFolder(): Folder
 	if RunService:IsServer() then

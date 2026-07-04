@@ -1,6 +1,10 @@
 --!strict
--- IncomeService: доход с аттракционов — онлайн-тик + офлайн-начисление при входе
--- (модель Grow a Garden: «урожай» копится, пока тебя нет).
+-- IncomeService: доход с аттракционов — онлайн-тик + офлайн-начисление при входе.
+-- Фиксы из docs/economy/README.md:
+--   флаг №4: дробный остаток копится (иначе новичок с < 6 монет/мин получал 0 онлайн);
+--   флаг №5: офлайн-кап 8 ч В СУТКИ, а не на каждое окно отсутствия
+--            (2–3 захода в день давали 16–24 ч оплаченного офлайна → инфляция
+--            и уравнивание казуала с хардкором).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,12 +13,13 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MonsterCatalog = require(ReplicatedStorage.Shared.MonsterCatalog)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local DataService = require(script.Parent.DataService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local IncomeService = {}
 
-local TICK_SECONDS = 10
-local OFFLINE_CAP_HOURS = 8 -- дальше доход не копится — причина зайти
-local OFFLINE_RATE = 0.5 -- офлайн-доход = 50% от онлайн (онлайн должен быть выгоднее)
+local function utcDay(atTime: number): number
+	return math.floor(atTime / 86400)
+end
 
 --- Доход игрока в минуту: сумма по монстрам, приставленным к слотам участка
 function IncomeService.GetIncomePerMinute(data: any): number
@@ -36,21 +41,47 @@ function IncomeService.GetIncomePerMinute(data: any): number
 	return total
 end
 
+--- Начислить с учётом дробного остатка (флаг №4)
+local function credit(player: Player, data: any, rawAmount: number, sku: string)
+	local withRemainder = rawAmount + data.income.remainder
+	local whole = math.floor(withRemainder)
+	data.income.remainder = withRemainder - whole
+	if whole > 0 then
+		DataService.AddCurrency(player, "coins", whole)
+		Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
+		AnalyticsService.LogEconomy(player, "Source", "coins", whole, sku)
+	end
+end
+
 local function grantOffline(player: Player)
 	local data = DataService.WaitFor(player)
 	if data == nil or data.lastSeenAt == 0 then
 		return
 	end
-	local awaySeconds = math.min(os.time() - data.lastSeenAt, OFFLINE_CAP_HOURS * 3600)
-	if awaySeconds <= 0 then
+	local now = os.time()
+	local awaySeconds = math.max(0, now - data.lastSeenAt)
+	if awaySeconds == 0 then
 		return
 	end
-	local income = math.floor(IncomeService.GetIncomePerMinute(data) * (awaySeconds / 60) * OFFLINE_RATE)
-	if income > 0 then
-		DataService.AddCurrency(player, "coins", income)
-		Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
-		-- TODO UI: приветственный экран «Пока тебя не было: +N монет»
+
+	-- Суточный кап: оплачиваем только остаток дневного лимита.
+	-- Окно могло пересечь границу суток — считаем по дню ВОЗВРАТА (проще и честно:
+	-- пропущенный вчерашний день всё равно даёт полный кап при возврате сегодня).
+	local today = utcDay(now)
+	if data.income.offlineDay ~= today then
+		data.income.offlineDay = today
+		data.income.offlinePaidSeconds = 0
 	end
+	local capSeconds = GameConfig.Income.OfflineDailyCapHours * 3600
+	local payableSeconds = math.min(awaySeconds, capSeconds - data.income.offlinePaidSeconds)
+	if payableSeconds <= 0 then
+		return
+	end
+	data.income.offlinePaidSeconds += payableSeconds
+
+	local raw = IncomeService.GetIncomePerMinute(data) * (payableSeconds / 60) * GameConfig.Income.OfflineRate
+	credit(player, data, raw, "offline_income")
+	-- TODO UI: приветственный экран «Пока тебя не было: +N монет»
 end
 
 function IncomeService.Init()
@@ -69,15 +100,12 @@ function IncomeService.Init()
 	-- онлайн-тик
 	task.spawn(function()
 		while true do
-			task.wait(TICK_SECONDS)
+			task.wait(GameConfig.Income.TickSeconds)
 			for _, player in Players:GetPlayers() do
 				local data = DataService.Get(player)
 				if data then
-					local income = math.floor(IncomeService.GetIncomePerMinute(data) * (TICK_SECONDS / 60))
-					if income > 0 then
-						DataService.AddCurrency(player, "coins", income)
-						Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
-					end
+					local raw = IncomeService.GetIncomePerMinute(data) * (GameConfig.Income.TickSeconds / 60)
+					credit(player, data, raw, "online_income")
 				end
 			end
 		end

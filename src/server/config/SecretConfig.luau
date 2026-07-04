@@ -14,11 +14,13 @@ SecretConfig.MutationChances = {
 
 -- Секретные рецепты: точная комбинация 4 монстров → уникальный босс.
 -- Ключ — отсортированные id через "+". Не публикуются, комьюнити ищет само.
+-- ⚠️ Правило (economy флаг №3): ингредиенты только Epic+ — иначе Nightmare за копейки
+-- утекает в TikTok в день релиза («АнтиМим» из 4 Common стоил 100 монет).
 SecretConfig.FusionRecipes = {
-	-- «Симфония Криков»: Дирижёр Тьмы + 3 Epic (пример; результат добавить в серверный каталог)
+	-- «Симфония Криков»: Дирижёр Тьмы (Legendary) + 3 Epic
 	["dark_conductor+doll_mia+granny_pies+mirror_double"] = "scream_symphony",
-	-- «АнтиМим»: 4 Мима Молчуна
-	["mime+mime+mime+mime"] = "anti_mime",
+	-- «АнтиМим»: 4 Зеркальных Двойника (Epic) — «копия копий рождает пустоту»
+	["mirror_double+mirror_double+mirror_double+mirror_double"] = "anti_mime",
 }
 
 return SecretConfig

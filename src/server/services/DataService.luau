@@ -26,10 +26,14 @@ export type MonsterEntry = {
 -- Шаблон профиля (02-programming.md). ProfileStore:Reconcile() дозаполняет новые поля.
 DataService.ProfileTemplate = {
 	dataVersion = 1,
-	coins = 50, -- стартовый капитал: хватает на первого Common из магазина
+	coins = 50, -- стартовый капитал (плюс бесплатный Common ниже) — economy §4 п.12
 	courage = 0,
-	monsters = {} :: { MonsterEntry },
+	monsters = {
+		-- стартовый монстр: первая покупка в первые 2 минуты, но парк не пустой
+		{ uid = "m1", id = "boo_balloon", rarity = "Common", mutation = nil, legendPoints = 0, primeStars = 0 },
+	} :: { MonsterEntry },
 	plot = {} :: { { itemId: string, slot: number, monsterUid: string? } },
+	plotSlots = 3, -- куплено слотов аттракционов (рост за монеты, economy §4 п.10)
 	rank = { tier = 1, step = 0, points = 0, seasonPeak = 0, lockTier = 0 },
 	pass = { xp = 0, premium = false, claimed = {} },
 	offers = { firstPurchaseDone = false, ladder = 0 },
@@ -37,7 +41,21 @@ DataService.ProfileTemplate = {
 	stats = { scares = 0, visits = 0, escapes = 0 },
 	purchaseHistory = {} :: { [string]: boolean }, -- PurchaseId → выдано (идемпотентность)
 	lastSeenAt = 0, -- os.time() для офлайн-дохода
-	nextMonsterUid = 1,
+	nextMonsterUid = 2,
+	-- Магазин: сток витрины и дневные лимиты (economy §4 п.3–4)
+	shopState = {
+		rotationSeed = 0, -- сид, для которого валидны boughtSlots
+		boughtSlots = {} :: { [string]: number }, -- tostring(slotIndex) → куплено раз
+		day = 0, -- UTC-день для дневных лимитов
+		boughtByRarity = {} :: { [string]: number },
+	},
+	-- Доход: дробный остаток тика и суточный кап офлайна (economy §4 п.11, 16)
+	income = {
+		remainder = 0,
+		offlineDay = 0, -- UTC-день
+		offlinePaidSeconds = 0, -- оплачено офлайн-секунд за offlineDay
+	},
+	fusionSkipsToday = { day = 0, count = 0 }, -- лимит платных ускорений (economy §4 п.14)
 }
 
 -- Миграции: dataVersion N → N+1. Каждая функция ОБЯЗАНА поднять dataVersion.
