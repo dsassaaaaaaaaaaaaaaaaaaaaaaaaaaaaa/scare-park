@@ -8,6 +8,8 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MonsterCatalog = require(ReplicatedStorage.Shared.MonsterCatalog)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local DataService = require(script.Parent.DataService)
+local PlotService = require(script.Parent.PlotService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 local SecretConfig = require(script.Parent.Parent.config.SecretConfig)
 
 local FusionService = {}
@@ -123,6 +125,10 @@ function FusionService.Start(player: Player, uids: { string }): (boolean, number
 		end
 	end
 
+	PlotService.NotifyChanged(player) -- сгоревшие монстры сняты со слотов
+
+	AnalyticsService.LogEvent(player, "fusion_started")
+
 	local timer = GameConfig.Fusion.TimersByRarity[rarity] or GameConfig.Fusion.TimersByRarity.Common
 	local finishAt = os.time() + timer
 	data.fusion = {
@@ -160,6 +166,7 @@ function FusionService.Claim(player: Player): (boolean, any?, string?)
 	}
 	table.insert(data.monsters, newMonster)
 	data.fusion = { slots = {}, finishAt = 0, resultUid = "" }
+	AnalyticsService.LogEvent(player, `fusion_claimed_{rarity}`)
 	return true, newMonster, nil
 end
 

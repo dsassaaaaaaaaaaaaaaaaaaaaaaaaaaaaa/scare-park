@@ -10,6 +10,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MonsterCatalog = require(ReplicatedStorage.Shared.MonsterCatalog)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local DataService = require(script.Parent.DataService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local ShopService = {}
 
@@ -110,6 +111,10 @@ function ShopService.Buy(player: Player, slotIndex: number): (boolean, string?)
 	})
 
 	Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
+	AnalyticsService.LogEconomy(player, "Sink", "coins", slot.price, `buy_{def.id}`)
+	if #data.monsters == 1 then
+		AnalyticsService.LogOnboardingStep(player, AnalyticsService.OnboardingSteps.FirstMonsterBought, "FirstMonsterBought")
+	end
 	return true
 end
 

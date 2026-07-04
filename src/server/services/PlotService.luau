@@ -20,6 +20,20 @@ export type PlotItem = {
 	monsterUid: string?, -- какой монстр приставлен (uid из профиля)
 }
 
+-- Колбэки «участок игрока изменился» (MonsterRuntime перестраивает спавны).
+-- Колбэки вместо require — чтобы не создавать циклических зависимостей.
+local changedCallbacks: { (player: Player) -> () } = {}
+
+function PlotService.OnPlotChanged(callback: (player: Player) -> ())
+	table.insert(changedCallbacks, callback)
+end
+
+function PlotService.NotifyChanged(player: Player)
+	for _, callback in changedCallbacks do
+		task.spawn(callback, player)
+	end
+end
+
 local plotOwners: { [Instance]: Player } = {} -- участок → владелец
 local playerPlots: { [Player]: Instance } = {} -- владелец → участок
 
@@ -54,7 +68,7 @@ function PlotService.PlaceItem(player: Player, itemId: string, slot: number): bo
 		end
 	end
 	table.insert(data.plot, { itemId = itemId, slot = slot })
-	-- TODO: заспавнить физическую модель на участке (когда будет карта)
+	PlotService.NotifyChanged(player)
 	return true
 end
 
@@ -84,6 +98,7 @@ function PlotService.AssignMonster(player: Player, slot: number, monsterUid: str
 	for _, item in data.plot :: { PlotItem } do
 		if item.slot == slot then
 			item.monsterUid = monsterUid
+			PlotService.NotifyChanged(player)
 			return true
 		end
 	end
@@ -100,7 +115,7 @@ local function claimPlot(player: Player)
 			plotOwners[plot] = player
 			playerPlots[player] = plot
 			plot:SetAttribute("OwnerUserId", player.UserId)
-			-- TODO: загрузить и заспавнить постройки из data.plot
+			PlotService.NotifyChanged(player) -- спавн построек/монстров из data.plot
 			return
 		end
 	end

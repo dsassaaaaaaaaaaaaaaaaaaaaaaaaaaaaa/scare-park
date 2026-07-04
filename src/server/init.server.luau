@@ -10,6 +10,8 @@ local initOrder = {
 	require(services.ShopService),
 	require(services.FusionService),
 	require(services.ScareService),
+	require(services.IncomeService),
+	require(services.MonsterRuntime),
 	require(services.RankService),
 	require(services.MonetizationService),
 	require(services.AnalyticsService),

@@ -177,7 +177,26 @@ local function onPlayerRemoving(player: Player)
 	end
 end
 
+--- Снапшот профиля для HUD (только отображение)
+function DataService.Snapshot(player: Player): any?
+	local data = DataService.Get(player)
+	if data == nil then
+		return nil
+	end
+	return {
+		coins = data.coins,
+		courage = data.courage,
+		monsters = data.monsters,
+		fusion = data.fusion,
+		plot = data.plot,
+	}
+end
+
 function DataService.Init()
+	Remotes.GetFunction(Remotes.Names.GetSnapshot).OnServerInvoke = function(player)
+		return DataService.Snapshot(player)
+	end
+
 	for _, player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)
 	end

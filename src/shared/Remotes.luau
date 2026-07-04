@@ -16,13 +16,20 @@ Remotes.Names = {
 	ClaimFusion = "ClaimFusion", -- () → {ok, monster?, err?}
 	PlaceItem = "PlaceItem", -- (itemId, slot) → {ok, err?}
 	AssignMonster = "AssignMonster", -- (slot, monsterUid) → {ok, err?}
+	GetSnapshot = "GetSnapshot", -- () → снапшот профиля для HUD (или nil, если грузится)
+	RequestVisit = "RequestVisit", -- () → {ok, hostName?, err?} — визит в случайный чужой парк
+	LeaveVisit = "LeaveVisit", -- () → {ok} — выйти из визита (добровольно, без награды за финиш)
 	-- RemoteEvent (сервер → клиент)
 	ShopRotation = "ShopRotation", -- (витрина, nextRotationAt)
 	ProfileLoaded = "ProfileLoaded", -- (снапшот данных для HUD)
 	CurrencyChanged = "CurrencyChanged", -- (currency, newValue)
+	ScareEffect = "ScareEffect", -- (monsterId, mechanic) — клиент рисует скример/звук
+	CourageChanged = "CourageChanged", -- (courage 0..100 | nil = визит окончен)
+	VisitEnded = "VisitEnded", -- (escaped: boolean, reward: number)
 }
 
-local remoteFunctions = { "BuyShopSlot", "StartFusion", "ClaimFusion", "PlaceItem", "AssignMonster" }
+local remoteFunctions =
+	{ "BuyShopSlot", "StartFusion", "ClaimFusion", "PlaceItem", "AssignMonster", "GetSnapshot", "RequestVisit", "LeaveVisit" }
 
 local function getFolder(): Folder
 	if RunService:IsServer() then
