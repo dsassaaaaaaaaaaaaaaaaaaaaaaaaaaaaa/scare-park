@@ -1,0 +1,18 @@
+# Roblox
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+/sourcemap.json
+
+# Rojo
+/build/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/settings.json
+.idea/
