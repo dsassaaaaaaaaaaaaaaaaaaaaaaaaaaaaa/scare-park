@@ -113,8 +113,8 @@ function ShopUI.Build(gui: ScreenGui, purchaseCallback: (() -> ())?)
 		position = UDim2.fromOffset(0, 36),
 		parent = p,
 		textSize = 13,
-	})
-	;(timerLabel :: TextLabel).TextColor3 = UiKit.Colors.TextDim
+	});
+	(timerLabel :: TextLabel).TextColor3 = UiKit.Colors.TextDim
 
 	slotsFolder = Instance.new("Frame")
 	local sf = slotsFolder :: Frame

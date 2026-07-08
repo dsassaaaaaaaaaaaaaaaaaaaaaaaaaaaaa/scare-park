@@ -61,7 +61,9 @@ function IncomeLogic.GrantOffline(data: any, config: any, catalog: any, now: num
 
 	data.income.offlinePaidSeconds += payableSeconds
 
-	local raw = IncomeLogic.GetIncomePerMinute(data, config, catalog) * (payableSeconds / 60) * config.Income.OfflineRate
+	local raw = IncomeLogic.GetIncomePerMinute(data, config, catalog)
+		* (payableSeconds / 60)
+		* config.Income.OfflineRate
 	local credited = IncomeLogic.Credit(data, raw)
 	return { payableSeconds = payableSeconds, raw = raw, credited = credited }
 end

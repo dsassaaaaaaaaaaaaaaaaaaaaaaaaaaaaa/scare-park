@@ -172,7 +172,8 @@ function FusionLogic.StartFusion(
 
 	local now = if options and options.now then options.now else os.time()
 	local timer = config.Fusion.TimersByRarity[rarity] or config.Fusion.TimersByRarity.Rare
-	local resultUid = recipeResult or FusionLogic.PickMonsterOfRarity(catalog, rarity, if options then options.rng else nil)
+	local resultUid = recipeResult
+		or FusionLogic.PickMonsterOfRarity(catalog, rarity, if options then options.rng else nil)
 	local finishAt = now + timer
 
 	data.fusion = {

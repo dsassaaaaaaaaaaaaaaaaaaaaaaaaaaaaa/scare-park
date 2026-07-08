@@ -1,6 +1,6 @@
-local GameConfig = require("./src/shared/GameConfig")
-local MonsterCatalog = require("./src/shared/MonsterCatalog")
-local FusionLogic = require("./src/shared/logic/FusionLogic")
+local GameConfig = require("../src/shared/GameConfig")
+local MonsterCatalog = require("../src/shared/MonsterCatalog")
+local FusionLogic = require("../src/shared/logic/FusionLogic")
 
 local function monster(uid, id)
 	local def = MonsterCatalog[id]

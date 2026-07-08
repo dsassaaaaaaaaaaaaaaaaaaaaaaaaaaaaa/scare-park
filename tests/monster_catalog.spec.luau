@@ -1,5 +1,5 @@
-local GameConfig = require("./src/shared/GameConfig")
-local MonsterCatalog = require("./src/shared/MonsterCatalog")
+local GameConfig = require("../src/shared/GameConfig")
+local MonsterCatalog = require("../src/shared/MonsterCatalog")
 
 return function(Runner)
 	Runner.test("MonsterCatalog has exactly 15 public launch monsters with valid ids", function()

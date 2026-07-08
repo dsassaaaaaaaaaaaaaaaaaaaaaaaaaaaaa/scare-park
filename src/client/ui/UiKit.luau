@@ -36,7 +36,9 @@ function UiKit.Panel(props: { size: UDim2, position: UDim2, parent: Instance, an
 	return frame
 end
 
-function UiKit.Label(props: { text: string, size: UDim2, position: UDim2?, parent: Instance, textSize: number? }): TextLabel
+function UiKit.Label(
+	props: { text: string, size: UDim2, position: UDim2?, parent: Instance, textSize: number? }
+): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Size = props.size
 	label.Position = props.position or UDim2.new()
@@ -49,7 +51,9 @@ function UiKit.Label(props: { text: string, size: UDim2, position: UDim2?, paren
 	return label
 end
 
-function UiKit.Button(props: { text: string, size: UDim2, position: UDim2?, parent: Instance, onClick: () -> () }): TextButton
+function UiKit.Button(
+	props: { text: string, size: UDim2, position: UDim2?, parent: Instance, onClick: () -> () }
+): TextButton
 	local button = Instance.new("TextButton")
 	button.Size = props.size
 	button.Position = props.position or UDim2.new()

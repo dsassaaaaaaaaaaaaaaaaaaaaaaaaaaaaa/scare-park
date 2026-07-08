@@ -1,4 +1,4 @@
-local GameConfig = require("./src/shared/GameConfig")
+local GameConfig = require("../src/shared/GameConfig")
 
 return function(Runner)
 	Runner.test("GameConfig keeps positive economy prices and fees", function()
