@@ -59,7 +59,13 @@ end
 
 --- Урон храбрости в % от монстра. Вызывается СЕРВЕРНОЙ логикой монстра (триггеры),
 --- НЕ клиентом напрямую. Возвращает true, если посетитель сбежал.
-function ScareService.ApplyScare(visitor: Player, ownerUid: string, monsterEntry: any, visitorPosition: Vector3?, monsterPosition: Vector3?): boolean
+function ScareService.ApplyScare(
+	visitor: Player,
+	ownerUid: string,
+	monsterEntry: any,
+	visitorPosition: Vector3?,
+	monsterPosition: Vector3?
+): boolean
 	local visit = visits[visitor]
 	if visit == nil then
 		return false

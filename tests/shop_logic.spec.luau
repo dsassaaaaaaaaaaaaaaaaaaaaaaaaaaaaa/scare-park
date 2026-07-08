@@ -1,6 +1,6 @@
-local GameConfig = require("../src/shared/GameConfig")
-local MonsterCatalog = require("../src/shared/MonsterCatalog")
-local ShopLogic = require("../src/shared/logic/ShopLogic")
+local GameConfig = require("./src/shared/GameConfig")
+local MonsterCatalog = require("./src/shared/MonsterCatalog")
+local ShopLogic = require("./src/shared/logic/ShopLogic")
 
 return function(Runner)
 	Runner.test("ShopLogic returns the same showcase for the same rotation seed", function()

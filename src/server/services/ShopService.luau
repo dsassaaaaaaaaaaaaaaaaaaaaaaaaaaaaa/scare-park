@@ -137,7 +137,11 @@ function ShopService.Buy(player: Player, slotIndex: number): (boolean, string?)
 	Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
 	AnalyticsService.LogEconomy(player, "Sink", "coins", slot.price, `buy_{def.id}`)
 	if #data.monsters == 2 then -- первый купленный (m1 — стартовый подарок)
-		AnalyticsService.LogOnboardingStep(player, AnalyticsService.OnboardingSteps.FirstMonsterBought, "FirstMonsterBought")
+		AnalyticsService.LogOnboardingStep(
+			player,
+			AnalyticsService.OnboardingSteps.FirstMonsterBought,
+			"FirstMonsterBought"
+		)
 	end
 	return true
 end
@@ -157,11 +161,8 @@ function ShopService.Init()
 
 	Players.PlayerAdded:Connect(function(player)
 		task.wait(1)
-		Remotes.GetEvent(Remotes.Names.ShopRotation):FireClient(
-			player,
-			ShopService.GetShowcase(ShopService.GetCurrentSeed()),
-			ShopService.GetNextRotationAt()
-		)
+		Remotes.GetEvent(Remotes.Names.ShopRotation)
+			:FireClient(player, ShopService.GetShowcase(ShopService.GetCurrentSeed()), ShopService.GetNextRotationAt())
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		lastBuyAt[player] = nil

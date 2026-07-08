@@ -144,7 +144,9 @@ local function claimPlot(player: Player)
 			return
 		end
 	end
-	warn(`[PlotService] нет свободного участка для {player.Name} (максимум {GameConfig.Server.MaxPlayers})`)
+	warn(
+		`[PlotService] нет свободного участка для {player.Name} (максимум {GameConfig.Server.MaxPlayers})`
+	)
 end
 
 local function releasePlot(player: Player)

@@ -1,9 +1,9 @@
-local Runner = require("./runner")
+local Runner = require("./tests/runner")
 
-require("./game_config.spec")(Runner)
-require("./monster_catalog.spec")(Runner)
-require("./shop_logic.spec")(Runner)
-require("./fusion_logic.spec")(Runner)
-require("./income_logic.spec")(Runner)
+require("./tests/game_config.spec")(Runner)
+require("./tests/monster_catalog.spec")(Runner)
+require("./tests/shop_logic.spec")(Runner)
+require("./tests/fusion_logic.spec")(Runner)
+require("./tests/income_logic.spec")(Runner)
 
 Runner.run()

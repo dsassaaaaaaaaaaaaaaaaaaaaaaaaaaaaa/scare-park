@@ -1,6 +1,6 @@
-local GameConfig = require("../src/shared/GameConfig")
-local MonsterCatalog = require("../src/shared/MonsterCatalog")
-local IncomeLogic = require("../src/shared/logic/IncomeLogic")
+local GameConfig = require("./src/shared/GameConfig")
+local MonsterCatalog = require("./src/shared/MonsterCatalog")
+local IncomeLogic = require("./src/shared/logic/IncomeLogic")
 
 return function(Runner)
 	Runner.test("IncomeLogic sums assigned monster income and mutation multipliers", function()
