@@ -125,6 +125,8 @@ function ScareService.SetProgress(visitor: Player, progress: number)
 	end
 end
 
+local teleportTo: (Player, BasePart?) -> ()
+
 --- Завершение визита. escaped=true → побег.
 function ScareService.EndVisit(visitor: Player, escaped: boolean)
 	local visit = visits[visitor]
@@ -178,7 +180,7 @@ function ScareService.GetVisitorsOf(host: Player): { Player }
 end
 
 --- Телепорт персонажа к части (если есть)
-local function teleportTo(player: Player, part: BasePart?)
+teleportTo = function(player: Player, part: BasePart?)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if root and part then
