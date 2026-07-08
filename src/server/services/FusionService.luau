@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MonsterCatalog = require(ReplicatedStorage.Shared.MonsterCatalog)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local FusionLogic = require(ReplicatedStorage.Shared.logic.FusionLogic)
 local DataService = require(script.Parent.DataService)
 local PlotService = require(script.Parent.PlotService)
 local AnalyticsService = require(script.Parent.AnalyticsService)
@@ -14,36 +15,7 @@ local SecretConfig = require(script.Parent.Parent.config.SecretConfig)
 
 local FusionService = {}
 
-local RARITY_INDEX: { [string]: number } = {}
-for i, rarity in GameConfig.Rarities do
-	RARITY_INDEX[rarity] = i
-end
-
 local rng = Random.new()
-
-function FusionService.RecipeKey(monsterIds: { string }): string
-	local sorted = table.clone(monsterIds)
-	table.sort(sorted)
-	return table.concat(sorted, "+")
-end
-
--- ⚠️ Правило редкости (economy флаг №1): ТОЛЬКО 4 монстра одной редкости → +1 ступень.
--- Старая формула ceil(avg)+1 позволяла Mythic за 1140 монет миксом 1×L + 3×E.
--- Обычный фьюжн не поднимается выше MaxRegularResultRarity (Nightmare/Secret — только рецепты).
-local function resultRarityStrict(monsters: { any }): (string?, string?)
-	local rarity = monsters[1].rarity
-	for _, monster in monsters do
-		if monster.rarity ~= rarity then
-			return nil, "mixed_rarities"
-		end
-	end
-	local maxIdx = RARITY_INDEX[GameConfig.Fusion.MaxRegularResultRarity]
-	local idx = RARITY_INDEX[rarity] or 1
-	if idx >= maxIdx then
-		return nil, "max_rarity" -- 4 Mythic обычным фьюжном не фьюзятся: ищи рецепт
-	end
-	return GameConfig.Rarities[idx + 1], nil
-end
 
 local function rollMutation(): string?
 	local roll = rng:NextNumber()
@@ -57,117 +29,39 @@ local function rollMutation(): string?
 	return nil
 end
 
---- Случайный монстр каталога данной редкости (для результата фьюжна)
-local function pickMonsterOfRarity(rarity: string): string
-	local candidates: { string } = {}
-	for id, def in MonsterCatalog do
-		if def.rarity == rarity then
-			table.insert(candidates, id)
-		end
-	end
-	table.sort(candidates)
-	if #candidates == 0 then
-		-- редкость выше Mythic пока без каталога → отдаём Mythic
-		return pickMonsterOfRarity("Mythic")
-	end
-	return candidates[rng:NextInteger(1, #candidates)]
+function FusionService.RecipeKey(monsterIds: { string }): string
+	return FusionLogic.RecipeKey(monsterIds)
 end
 
 function FusionService.Start(player: Player, uids: { string }): (boolean, number?, string?)
 	if not GameConfig.Flags.FusionEnabled then
 		return false, nil, "disabled"
 	end
-	if type(uids) ~= "table" or #uids ~= GameConfig.Fusion.SlotCount then
-		return false, nil, "bad_args"
-	end
+
 	local data = DataService.Get(player)
 	if data == nil then
 		return false, nil, "no_profile"
 	end
-	if data.fusion.finishAt ~= 0 then
-		return false, nil, "fusion_busy"
-	end
 
-	-- игрок владеет всеми 4, без дублей uid
-	local selected: { any } = {}
-	local seen: { [string]: boolean } = {}
-	for _, uid in uids do
-		if type(uid) ~= "string" or seen[uid] then
-			return false, nil, "bad_args"
-		end
-		seen[uid] = true
-		for _, monster in data.monsters do
-			if monster.uid == uid then
-				table.insert(selected, monster)
-				break
-			end
-		end
-	end
-	if #selected ~= GameConfig.Fusion.SlotCount then
-		return false, nil, "not_owned"
-	end
-	-- престижных не сжигаем? Нет: сжигать МОЖНО (дилемма из дизайна), переманивать нельзя.
-
-	-- Секретный рецепт проверяется ПЕРВЫМ (рецепты — единственное исключение
-	-- из правила «4 одной редкости»; их ингредиенты по дизайну Epic+)
-	local ids: { string } = {}
-	for _, monster in selected do
-		table.insert(ids, monster.id)
-	end
-	local recipeResult = SecretConfig.FusionRecipes[FusionService.RecipeKey(ids)]
-	local rarity: string
-	if recipeResult then
-		local def = MonsterCatalog[recipeResult]
-		rarity = if def then def.rarity else "Nightmare"
-	else
-		local strictRarity, rarityErr = resultRarityStrict(selected)
-		if strictRarity == nil then
-			return false, nil, rarityErr
-		end
-		rarity = strictRarity
-	end
-
-	-- Плата за фьюжн по редкости результата (economy §4 п.8): гейт + синк
-	local fee = GameConfig.Fusion.FeesByRarity[rarity] or 0
-	if fee > 0 and not DataService.AddCurrency(player, "coins", -fee) then
-		return false, nil, "not_enough_coins"
-	end
-
-	-- Забрать 4 монстров из инвентаря (сгорают сразу — иначе дюп через выход из игры)
-	for _, uid in uids do
-		for i, monster in data.monsters do
-			if monster.uid == uid then
-				table.remove(data.monsters, i)
-				break
-			end
-		end
-		-- снять с участка, если был приставлен
-		for _, item in data.plot do
-			if item.monsterUid == uid then
-				item.monsterUid = nil
-			end
-		end
+	local ok, result, err = FusionLogic.StartFusion(data, GameConfig, MonsterCatalog, uids, {
+		recipes = SecretConfig.FusionRecipes,
+		now = os.time(),
+		rng = rng,
+	})
+	if not ok then
+		return false, nil, err
 	end
 
 	PlotService.NotifyChanged(player) -- сгоревшие монстры сняты со слотов
 
 	local currencyEvent = Remotes.GetEvent(Remotes.Names.CurrencyChanged)
 	currencyEvent:FireClient(player, "coins", data.coins)
-	if fee > 0 then
-		AnalyticsService.LogEconomy(player, "Sink", "coins", fee, `fusion_fee_{rarity}`)
+	if result.fee > 0 then
+		AnalyticsService.LogEconomy(player, "Sink", "coins", result.fee, `fusion_fee_{result.rarity}`)
 	end
 	AnalyticsService.LogEvent(player, "fusion_started")
 
-	-- минимальный результат — Rare (Common+1), ключ всегда есть; страховка на случай дыр конфига
-	local timer = GameConfig.Fusion.TimersByRarity[rarity] or GameConfig.Fusion.TimersByRarity.Rare
-	local finishAt = os.time() + timer
-	data.fusion = {
-		slots = uids,
-		finishAt = finishAt,
-		-- результат фиксируем при старте — клейм не переролливается перезаходом
-		resultUid = recipeResult or pickMonsterOfRarity(rarity),
-	}
-	return true, finishAt, nil
+	return true, result.finishAt, nil
 end
 
 function FusionService.Claim(player: Player): (boolean, any?, string?)

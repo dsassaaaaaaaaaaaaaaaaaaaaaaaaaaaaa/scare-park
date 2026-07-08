@@ -40,7 +40,13 @@ function AnalyticsService.LogEvent(player: Player, eventName: string, value: num
 end
 
 --- Экономика: источники и стоки монет (для баланса инфляции)
-function AnalyticsService.LogEconomy(player: Player, flowType: "Source" | "Sink", currency: string, amount: number, sku: string)
+function AnalyticsService.LogEconomy(
+	player: Player,
+	flowType: "Source" | "Sink",
+	currency: string,
+	amount: number,
+	sku: string
+)
 	local ok, err = pcall(function()
 		RobloxAnalytics:LogEconomyEvent(
 			player,

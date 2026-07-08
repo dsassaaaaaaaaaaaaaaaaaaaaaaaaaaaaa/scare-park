@@ -46,7 +46,7 @@ local function getFolder(): Folder
 		local folder = ReplicatedStorage:FindFirstChild(FOLDER_NAME) :: Folder?
 		if folder == nil then
 			folder = Instance.new("Folder")
-			assert(folder)
+			assert(folder, "failed to create Remotes folder")
 			folder.Name = FOLDER_NAME
 			folder.Parent = ReplicatedStorage
 			for _, name in remoteFunctions do

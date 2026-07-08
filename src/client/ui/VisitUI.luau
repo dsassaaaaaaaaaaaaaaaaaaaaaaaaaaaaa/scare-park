@@ -130,7 +130,10 @@ function VisitUI.Build(gui: ScreenGui)
 		if f then
 			local alpha = math.clamp(courage / 100, 0, 1)
 			f.Size = UDim2.fromScale(alpha, 1)
-			f.BackgroundColor3 = if alpha > 0.5 then UiKit.Colors.Good elseif alpha > 0.25 then Color3.fromRGB(230, 180, 60) else UiKit.Colors.Bad
+			f.BackgroundColor3 = if alpha > 0.5
+				then UiKit.Colors.Good
+				elseif alpha > 0.25 then Color3.fromRGB(230, 180, 60)
+				else UiKit.Colors.Bad
 		end
 	end)
 

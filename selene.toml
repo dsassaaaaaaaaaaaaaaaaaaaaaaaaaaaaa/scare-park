@@ -1,1 +1,2 @@
 std = "roblox"
+exclude = ["src/server/lib/ProfileStore.luau"]
