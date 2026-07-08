@@ -12,75 +12,27 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MonsterCatalog = require(ReplicatedStorage.Shared.MonsterCatalog)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local IncomeLogic = require(ReplicatedStorage.Shared.logic.IncomeLogic)
 local DataService = require(script.Parent.DataService)
 local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local IncomeService = {}
 
-local function utcDay(atTime: number): number
-	return math.floor(atTime / 86400)
-end
-
---- Доход игрока в минуту: сумма по монстрам, приставленным к слотам участка
 function IncomeService.GetIncomePerMinute(data: any): number
-	local total = 0
-	for _, item in data.plot do
-		if item.monsterUid then
-			for _, monster in data.monsters do
-				if monster.uid == item.monsterUid then
-					local def = MonsterCatalog[monster.id]
-					local base = if def then def.baseIncome else 1
-					local mutation = monster.mutation and GameConfig.Mutations[monster.mutation]
-					local mult = if mutation then mutation.multiplier else 1
-					total += base * mult
-					break
-				end
-			end
-		end
-	end
-	return total
-end
-
---- Начислить с учётом дробного остатка (флаг №4)
-local function credit(player: Player, data: any, rawAmount: number, sku: string)
-	local withRemainder = rawAmount + data.income.remainder
-	local whole = math.floor(withRemainder)
-	data.income.remainder = withRemainder - whole
-	if whole > 0 then
-		DataService.AddCurrency(player, "coins", whole)
-		Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
-		AnalyticsService.LogEconomy(player, "Source", "coins", whole, sku)
-	end
+	return IncomeLogic.GetIncomePerMinute(data, GameConfig, MonsterCatalog)
 end
 
 local function grantOffline(player: Player)
 	local data = DataService.WaitFor(player)
-	if data == nil or data.lastSeenAt == 0 then
-		return
-	end
-	local now = os.time()
-	local awaySeconds = math.max(0, now - data.lastSeenAt)
-	if awaySeconds == 0 then
+	if data == nil then
 		return
 	end
 
-	-- Суточный кап: оплачиваем только остаток дневного лимита.
-	-- Окно могло пересечь границу суток — считаем по дню ВОЗВРАТА (проще и честно:
-	-- пропущенный вчерашний день всё равно даёт полный кап при возврате сегодня).
-	local today = utcDay(now)
-	if data.income.offlineDay ~= today then
-		data.income.offlineDay = today
-		data.income.offlinePaidSeconds = 0
+	local grant = IncomeLogic.GrantOffline(data, GameConfig, MonsterCatalog, os.time())
+	if grant.credited > 0 then
+		Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
+		AnalyticsService.LogEconomy(player, "Source", "coins", grant.credited, "offline_income")
 	end
-	local capSeconds = GameConfig.Income.OfflineDailyCapHours * 3600
-	local payableSeconds = math.min(awaySeconds, capSeconds - data.income.offlinePaidSeconds)
-	if payableSeconds <= 0 then
-		return
-	end
-	data.income.offlinePaidSeconds += payableSeconds
-
-	local raw = IncomeService.GetIncomePerMinute(data) * (payableSeconds / 60) * GameConfig.Income.OfflineRate
-	credit(player, data, raw, "offline_income")
 	-- TODO UI: приветственный экран «Пока тебя не было: +N монет»
 end
 
@@ -105,7 +57,11 @@ function IncomeService.Init()
 				local data = DataService.Get(player)
 				if data then
 					local raw = IncomeService.GetIncomePerMinute(data) * (GameConfig.Income.TickSeconds / 60)
-					credit(player, data, raw, "online_income")
+					local credited = IncomeLogic.Credit(data, raw)
+					if credited > 0 then
+						Remotes.GetEvent(Remotes.Names.CurrencyChanged):FireClient(player, "coins", data.coins)
+						AnalyticsService.LogEconomy(player, "Source", "coins", credited, "online_income")
+					end
 				end
 			end
 		end

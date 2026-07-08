@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MonsterCatalog = require(ReplicatedStorage.Shared.MonsterCatalog)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local ShopLogic = require(ReplicatedStorage.Shared.logic.ShopLogic)
 local DataService = require(script.Parent.DataService)
 local AnalyticsService = require(script.Parent.AnalyticsService)
 
@@ -19,22 +20,6 @@ export type ShopSlot = {
 	monsterId: string,
 	price: number,
 }
-
--- Пул ротации: только редкости с весом в конфиге (Mythic не продаётся)
-local pool: { { id: string, weight: number } } = {}
-local totalWeight = 0
-for id, def in MonsterCatalog do
-	local weight = GameConfig.Shop.WeightByRarity[def.rarity]
-	if weight then
-		table.insert(pool, { id = id, weight = weight })
-	end
-end
-table.sort(pool, function(a, b)
-	return a.id < b.id -- детерминированный порядок пула на всех серверах
-end)
-for _, entry in pool do
-	totalWeight += entry.weight
-end
 
 local lastBuyAt: { [Player]: number } = {} -- rate-limit
 
@@ -52,23 +37,9 @@ end
 
 --- Витрина для сида: детерминированная на всех серверах
 function ShopService.GetShowcase(seed: number): { ShopSlot }
-	local rng = Random.new(seed)
-	local showcase: { ShopSlot } = {}
-	for _ = 1, GameConfig.Shop.SlotCount do
-		local roll = rng:NextNumber() * totalWeight
-		local acc = 0
-		local picked = pool[#pool].id
-		for _, entry in pool do
-			acc += entry.weight
-			if roll <= acc then
-				picked = entry.id
-				break
-			end
-		end
-		local def = MonsterCatalog[picked]
-		table.insert(showcase, { monsterId = picked, price = GameConfig.Shop.PriceByRarity[def.rarity] })
-	end
-	return showcase
+	return ShopLogic.GetShowcase(GameConfig, MonsterCatalog, seed, function(rotationSeed)
+		return Random.new(rotationSeed)
+	end)
 end
 
 --- Сбросить счётчики стока/лимитов, если началась новая ротация/новый день
@@ -202,7 +173,7 @@ function ShopService.Init()
 		end
 	end)
 
-	print(`[ShopService] init, seed={ShopService.GetCurrentSeed()}, pool={#pool}`)
+	print(`[ShopService] init, seed={ShopService.GetCurrentSeed()}`)
 end
 
 return ShopService
