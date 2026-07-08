@@ -7,7 +7,6 @@ local RunService = game:GetService("RunService")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local ProfileStore = require(script.Parent.Parent.lib.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 local PROFILE_STORE_NAME = "PlayerData_v1"
@@ -63,13 +62,49 @@ local migrations: { [number]: (profile: any) -> () } = {
 	-- [1] = function(data) data.newField = 0; data.dataVersion = 2 end,
 }
 
-local store = ProfileStore.New(PROFILE_STORE_NAME, DataService.ProfileTemplate)
-if RunService:IsStudio() then
-	-- В Studio — мок-стор: не трогаем прод-данные при тестах
-	store = store.Mock
+local store: any? = nil
+if not RunService:IsStudio() then
+	local ProfileStore = require(script.Parent.Parent.lib.ProfileStore)
+	store = ProfileStore.New(PROFILE_STORE_NAME, DataService.ProfileTemplate)
 end
 
 local profiles: { [Player]: any } = {}
+local lazyStudioProfilesWarned: { [Player]: boolean } = {}
+
+local function deepCopy(value: any): any
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy = {}
+	for key, child in value do
+		copy[deepCopy(key)] = deepCopy(child)
+	end
+	return copy
+end
+
+local function makeStudioFallbackProfile(player: Player): any
+	local afterSave = Instance.new("BindableEvent")
+	local sessionEnd = Instance.new("BindableEvent")
+	local profile = {
+		Data = deepCopy(DataService.ProfileTemplate),
+		OnAfterSave = afterSave.Event,
+		OnSessionEnd = sessionEnd.Event,
+	}
+	function profile:AddUserId(_userId: number) end
+	function profile:Reconcile() end
+	function profile:IsActive()
+		return player.Parent == Players
+	end
+	function profile:Save()
+		afterSave:Fire()
+	end
+	function profile:EndSession()
+		sessionEnd:Fire()
+		afterSave:Destroy()
+		sessionEnd:Destroy()
+	end
+	return profile
+end
 
 local function migrate(data: any)
 	while migrations[data.dataVersion] do
@@ -82,6 +117,14 @@ end
 --- Данные игрока или nil, если профиль ещё грузится/не загрузился
 function DataService.Get(player: Player): any?
 	local profile = profiles[player]
+	if profile == nil and RunService:IsStudio() and player.Parent == Players then
+		if not lazyStudioProfilesWarned[player] then
+			warn(`[DataService] lazy-created in-memory Studio profile for {player.Name}`)
+			lazyStudioProfilesWarned[player] = true
+		end
+		profile = makeStudioFallbackProfile(player)
+		profiles[player] = profile
+	end
 	return profile and profile.Data or nil
 end
 
@@ -151,11 +194,26 @@ function DataService.AddCurrency(player: Player, currency: "coins" | "courage", 
 end
 
 local function onPlayerAdded(player: Player)
-	local profile = store:StartSessionAsync(`{player.UserId}`, {
-		Cancel = function()
-			return player.Parent ~= Players
-		end,
-	})
+	local profile: any? = nil
+	if RunService:IsStudio() then
+		profile = profiles[player]
+		if profile == nil then
+			warn(`[DataService] using in-memory Studio profile for {player.Name}`)
+			profile = makeStudioFallbackProfile(player)
+		end
+	else
+		local ok, profileOrErr = pcall(function()
+			return (store :: any):StartSessionAsync(`{player.UserId}`, {
+				Cancel = function()
+					return player.Parent ~= Players
+				end,
+			})
+		end)
+		profile = if ok then profileOrErr else nil
+		if not ok then
+			warn(`[DataService] ProfileStore failed for {player.Name}: {profileOrErr}`)
+		end
+	end
 
 	if profile == nil then
 		-- Сессию перехватил другой сервер или DataStore недоступен — не пускаем без данных
@@ -181,6 +239,7 @@ local function onPlayerAdded(player: Player)
 			monsters = profile.Data.monsters,
 			fusion = profile.Data.fusion,
 			plot = profile.Data.plot,
+			plotSlots = profile.Data.plotSlots,
 		})
 	else
 		profile:EndSession()
@@ -188,6 +247,7 @@ local function onPlayerAdded(player: Player)
 end
 
 local function onPlayerRemoving(player: Player)
+	lazyStudioProfilesWarned[player] = nil
 	local profile = profiles[player]
 	if profile then
 		profile.Data.lastSeenAt = os.time()
@@ -207,6 +267,7 @@ function DataService.Snapshot(player: Player): any?
 		monsters = data.monsters,
 		fusion = data.fusion,
 		plot = data.plot,
+		plotSlots = data.plotSlots,
 	}
 end
 

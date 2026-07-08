@@ -6,6 +6,7 @@ local services = script.services
 
 local initOrder = {
 	require(services.DataService),
+	require(services.MapService),
 	require(services.PlotService),
 	require(services.ShopService),
 	require(services.FusionService),

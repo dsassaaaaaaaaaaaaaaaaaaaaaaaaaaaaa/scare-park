@@ -18,7 +18,7 @@ function Hud.SetCurrency(currency: string, value: number)
 	end
 end
 
-function Hud.Build(callbacks: { onShop: () -> (), onFusion: () -> () }): ScreenGui
+function Hud.Build(callbacks: { onShop: () -> (), onFusion: () -> (), onPlacement: (() -> ())? }): ScreenGui
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "ScareParkHud"
 	gui.ResetOnSpawn = false
@@ -50,10 +50,19 @@ function Hud.Build(callbacks: { onShop: () -> (), onFusion: () -> () }): ScreenG
 	UiKit.Button({
 		text = "🛒 Магазин",
 		size = UDim2.fromOffset(130, 44),
-		position = UDim2.new(0.5, -140, 1, -56),
+		position = UDim2.new(0.5, -290, 1, -56),
 		parent = gui,
 		onClick = callbacks.onShop,
 	})
+	if callbacks.onPlacement then
+		UiKit.Button({
+			text = "🧩 Парк",
+			size = UDim2.fromOffset(130, 44),
+			position = UDim2.new(0.5, -140, 1, -56),
+			parent = gui,
+			onClick = callbacks.onPlacement :: () -> (),
+		})
+	end
 	UiKit.Button({
 		text = "⚗️ Фьюжн",
 		size = UDim2.fromOffset(130, 44),

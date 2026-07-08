@@ -53,6 +53,24 @@ local function addBillboard(body: BasePart, displayName: string)
 	label.Parent = billboard
 end
 
+local function addAccentPart(model: Model, name: string, body: BasePart, offset: Vector3, size: Vector3, color: Color3, shape: Enum.PartType?)
+	local accent = Instance.new("Part")
+	accent.Name = name
+	accent.Anchored = true
+	accent.CanCollide = false
+	accent.Size = size
+	accent.CFrame = body.CFrame * CFrame.new(offset)
+	accent.Color = color
+	accent.Material = Enum.Material.Neon
+	accent.TopSurface = Enum.SurfaceType.Smooth
+	accent.BottomSurface = Enum.SurfaceType.Smooth
+	if shape then
+		accent.Shape = shape
+	end
+	accent.Parent = model
+	return accent
+end
+
 function MonsterModelFactory.CreatePlaceholder(monsterId: string, def: any?): Model
 	local model = Instance.new("Model")
 	model.Name = monsterId
@@ -64,11 +82,64 @@ function MonsterModelFactory.CreatePlaceholder(monsterId: string, def: any?): Mo
 	local body = Instance.new("Part")
 	body.Name = "Body"
 	body.Shape = SHAPE_BY_RARITY[rarity] or Enum.PartType.Block
-	body.Size = Vector3.new(size.x, size.y, size.z)
+	local bodySize = Vector3.new(size.x, size.y, size.z)
+	body.Size = bodySize
 	body.Anchored = true
 	body.CanCollide = false
 	body.Color = Color3.fromRGB(color.r, color.g, color.b)
+	body.Material = if rarity == "Nightmare" or rarity == "Secret" then Enum.Material.Neon else Enum.Material.SmoothPlastic
 	body.Parent = model
+
+	local eyeY = math.max(0.35, bodySize.Y * 0.15)
+	local eyeZ = -bodySize.Z / 2 - 0.06
+	addAccentPart(
+		model,
+		"LeftEye",
+		body,
+		Vector3.new(-bodySize.X * 0.18, eyeY, eyeZ),
+		Vector3.new(0.28, 0.28, 0.12),
+		Color3.fromRGB(255, 245, 205),
+		Enum.PartType.Ball
+	)
+	addAccentPart(
+		model,
+		"RightEye",
+		body,
+		Vector3.new(bodySize.X * 0.18, eyeY, eyeZ),
+		Vector3.new(0.28, 0.28, 0.12),
+		Color3.fromRGB(255, 245, 205),
+		Enum.PartType.Ball
+	)
+	addAccentPart(
+		model,
+		"MouthGlow",
+		body,
+		Vector3.new(0, -bodySize.Y * 0.1, eyeZ),
+		Vector3.new(bodySize.X * 0.42, 0.12, 0.1),
+		Color3.fromRGB(28, 0, 42),
+		nil
+	)
+
+	local aura = Instance.new("PointLight")
+	aura.Name = "MonsterAura"
+	aura.Color = body.Color
+	aura.Brightness = 0.75
+	aura.Range = 14
+	aura.Parent = body
+
+	local particles = Instance.new("ParticleEmitter")
+	particles.Name = "FearMotes"
+	particles.Rate = if rarity == "Common" then 3 else 8
+	particles.Lifetime = NumberRange.new(0.8, 1.8)
+	particles.Speed = NumberRange.new(0.4, 1.2)
+	particles.SpreadAngle = Vector2.new(60, 60)
+	particles.Color = ColorSequence.new(body.Color)
+	particles.LightEmission = 0.35
+	particles.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.18),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	particles.Parent = body
 
 	local screamSound = Instance.new("Sound")
 	screamSound.Name = "ScreamSound"

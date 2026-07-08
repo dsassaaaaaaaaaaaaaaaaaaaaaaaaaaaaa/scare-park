@@ -19,6 +19,7 @@ export type SpawnedMonster = {
 	owner: Player,
 	entry: any, -- MonsterEntry из профиля
 	homeCFrame: CFrame,
+	slotPart: BasePart?,
 }
 
 local spawned: { [string]: SpawnedMonster } = {} -- monsterUid → спавн
@@ -30,17 +31,54 @@ function MonsterRuntime.Spawn(owner: Player, entry: any, slotPart: BasePart?)
 		return -- карты нет — физический спавн невозможен
 	end
 	local model = MonsterModelFactory.GetModel(entry.id)
-	local homeCFrame = slotPart.CFrame + Vector3.new(0, 3, 0)
+	local yOffset = 3
+	if model.PrimaryPart then
+		yOffset = math.max(2.8, model.PrimaryPart.Size.Y / 2 + 0.8)
+	end
+	local position = slotPart.Position + Vector3.new(0, yOffset, 0)
+	local plot = slotPart:FindFirstAncestorWhichIsA("Model")
+	local entrance = plot and plot:FindFirstChild("Entrance") :: BasePart?
+	local homeCFrame = if entrance
+		then CFrame.lookAt(position, Vector3.new(entrance.Position.X, position.Y, entrance.Position.Z))
+		else CFrame.new(position)
 	model:PivotTo(homeCFrame)
 	model:SetAttribute("MonsterUid", entry.uid)
 	model:SetAttribute("OwnerUserId", owner.UserId)
-	model.Parent = slotPart.Parent
-	spawned[entry.uid] = { model = model, owner = owner, entry = entry, homeCFrame = homeCFrame }
+	model:SetAttribute("SlotIndex", slotPart:GetAttribute("SlotIndex"))
+	local monstersFolder = plot and plot:FindFirstChild("Monsters")
+	if monstersFolder == nil and plot then
+		monstersFolder = Instance.new("Folder")
+		monstersFolder.Name = "Monsters"
+		monstersFolder.Parent = plot
+	end
+	model.Parent = monstersFolder or slotPart.Parent
+	slotPart:SetAttribute("OccupiedBy", entry.uid)
+	spawned[entry.uid] = { model = model, owner = owner, entry = entry, homeCFrame = homeCFrame, slotPart = slotPart }
+
+	local primary = model.PrimaryPart
+	if primary then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "PickupMonsterPrompt"
+		prompt.ActionText = "Убрать монстра"
+		prompt.ObjectText = "Твой монстр"
+		prompt.HoldDuration = 0.35
+		prompt.MaxActivationDistance = 10
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = primary
+		prompt.Triggered:Connect(function(player)
+			if player == owner then
+				PlotService.UnassignMonster(owner, entry.uid)
+			end
+		end)
+	end
 end
 
 function MonsterRuntime.Despawn(monsterUid: string)
 	local record = spawned[monsterUid]
 	if record then
+		if record.slotPart then
+			record.slotPart:SetAttribute("OccupiedBy", nil)
+		end
 		record.model:Destroy()
 		spawned[monsterUid] = nil
 	end
