@@ -16,11 +16,14 @@ local BLINK_RANGE = 26
 local LIGHTS_OUT_RANGE = 18
 local UNSEEN_RANGE = 34
 local LAUGH_RANGE = 28
+local UNSEEN_HOME_LIMIT = 12
+local RETURN_HOME_DELAY = 1.2
 
 export type SpawnedMonster = {
 	model: Model,
 	owner: Player,
 	entry: any,
+	homeCFrame: CFrame,
 }
 
 type MechanicFn = (SpawnedMonster, Player, BasePart, BasePart) -> ()
@@ -49,11 +52,21 @@ local function playScream(model: Model, volume: number, playbackSpeed: number?)
 	if sound and sound:IsA("Sound") then
 		sound.Volume = math.clamp(volume, 0, 1)
 		sound.PlaybackSpeed = playbackSpeed or 1
-		sound:Play()
+		if not sound.IsPlaying then
+			sound:Play()
+		end
 	end
 end
 
-local function applyScare(record: SpawnedMonster, visitor: Player, root: BasePart, monsterPart: BasePart, mechanicId: string)
+local function returnHome(record: SpawnedMonster)
+	task.delay(RETURN_HOME_DELAY, function()
+		if record.model.Parent ~= nil and record.model.PrimaryPart ~= nil then
+			record.model:PivotTo(record.homeCFrame)
+		end
+	end)
+end
+
+local function tryApplyScare(record: SpawnedMonster, visitor: Player, root: BasePart, monsterPart: BasePart): boolean
 	local _escaped, applied = ScareService.ApplyScare(
 		visitor,
 		record.entry.uid,
@@ -61,18 +74,21 @@ local function applyScare(record: SpawnedMonster, visitor: Player, root: BasePar
 		root.Position,
 		monsterPart.Position
 	)
-	if not applied then
-		return
-	end
+	return applied
+end
 
+local function finishScare(record: SpawnedMonster, visitor: Player, mechanicId: string)
 	playScream(record.model, 1)
 	Remotes.GetEvent(Remotes.Names.ScareEffect):FireClient(visitor, record.entry.id, mechanicId)
 	Remotes.GetEvent(Remotes.Names.CourageChanged):FireClient(visitor, ScareService.GetCourage(visitor))
+	returnHome(record)
 end
 
 local function fallbackProximity(record: SpawnedMonster, visitor: Player, root: BasePart, monsterPart: BasePart)
-	if (root.Position - monsterPart.Position).Magnitude <= PROXIMITY_RANGE then
-		applyScare(record, visitor, root, monsterPart, ScareMechanicLogic.FallbackId)
+	if (root.Position - monsterPart.Position).Magnitude <= PROXIMITY_RANGE
+		and tryApplyScare(record, visitor, root, monsterPart)
+	then
+		finishScare(record, visitor, ScareMechanicLogic.FallbackId)
 	end
 end
 
@@ -83,15 +99,18 @@ registry["chase_pop"] = function(record: SpawnedMonster, visitor: Player, root: 
 	if offset.Magnitude > CHASE_RANGE then
 		return
 	end
+	if not tryApplyScare(record, visitor, root, monsterPart) then
+		return
+	end
 	if offset.Magnitude < 0.01 then
-		applyScare(record, visitor, root, monsterPart, "chase_pop")
+		finishScare(record, visitor, "chase_pop")
 		return
 	end
 
 	local chaseDistance = math.max(offset.Magnitude - 4, 0)
 	local popPosition = monsterPart.Position + offset.Unit * math.min(chaseDistance, 7)
 	pivotFacing(record.model, Vector3.new(popPosition.X, monsterPart.Position.Y, popPosition.Z), root.Position)
-	applyScare(record, visitor, root, record.model.PrimaryPart or monsterPart, "chase_pop")
+	finishScare(record, visitor, "chase_pop")
 end
 
 registry["blink_teleport"] = function(record: SpawnedMonster, visitor: Player, root: BasePart, monsterPart: BasePart)
@@ -99,20 +118,26 @@ registry["blink_teleport"] = function(record: SpawnedMonster, visitor: Player, r
 	if offset.Magnitude > BLINK_RANGE or not isLookingAt(root, monsterPart.Position) then
 		return
 	end
+	if not tryApplyScare(record, visitor, root, monsterPart) then
+		return
+	end
 
 	local behind = root.Position - root.CFrame.LookVector * 6
 	pivotFacing(record.model, Vector3.new(behind.X, monsterPart.Position.Y, behind.Z), root.Position)
-	applyScare(record, visitor, root, record.model.PrimaryPart or monsterPart, "blink_teleport")
+	finishScare(record, visitor, "blink_teleport")
 end
 
 registry["lights_out_jump"] = function(record: SpawnedMonster, visitor: Player, root: BasePart, monsterPart: BasePart)
 	if (root.Position - monsterPart.Position).Magnitude > LIGHTS_OUT_RANGE then
 		return
 	end
+	if not tryApplyScare(record, visitor, root, monsterPart) then
+		return
+	end
 
 	local front = root.Position + root.CFrame.LookVector * 5
 	pivotFacing(record.model, Vector3.new(front.X, monsterPart.Position.Y + 1.5, front.Z), root.Position)
-	applyScare(record, visitor, root, record.model.PrimaryPart or monsterPart, "lights_out_jump")
+	finishScare(record, visitor, "lights_out_jump")
 end
 
 registry["move_when_unseen"] = function(record: SpawnedMonster, visitor: Player, root: BasePart, monsterPart: BasePart)
@@ -121,15 +146,28 @@ registry["move_when_unseen"] = function(record: SpawnedMonster, visitor: Player,
 		return
 	end
 	if offset.Magnitude < 0.01 then
-		applyScare(record, visitor, root, monsterPart, "move_when_unseen")
+		if tryApplyScare(record, visitor, root, monsterPart) then
+			finishScare(record, visitor, "move_when_unseen")
+		end
 		return
 	end
 
 	local step = offset.Unit * math.min(3, math.max(offset.Magnitude - PROXIMITY_RANGE + 2, 0))
-	local nextPosition = monsterPart.Position + step
-	pivotFacing(record.model, Vector3.new(nextPosition.X, monsterPart.Position.Y, nextPosition.Z), root.Position)
-	if (root.Position - nextPosition).Magnitude <= PROXIMITY_RANGE then
-		applyScare(record, visitor, root, record.model.PrimaryPart or monsterPart, "move_when_unseen")
+	local desiredPosition = monsterPart.Position + step
+	local homePosition = record.homeCFrame.Position
+	local clampedOffset = ScareMechanicLogic.ClampRoamOffset(
+		desiredPosition.X - homePosition.X,
+		desiredPosition.Z - homePosition.Z,
+		UNSEEN_HOME_LIMIT
+	)
+	local nextPosition = Vector3.new(homePosition.X + clampedOffset.x, monsterPart.Position.Y, homePosition.Z + clampedOffset.z)
+	pivotFacing(record.model, nextPosition, root.Position)
+
+	local currentPart = record.model.PrimaryPart or monsterPart
+	if (root.Position - currentPart.Position).Magnitude <= PROXIMITY_RANGE
+		and tryApplyScare(record, visitor, root, currentPart)
+	then
+		finishScare(record, visitor, "move_when_unseen")
 	end
 end
 
@@ -141,8 +179,8 @@ registry["approaching_laugh"] = function(record: SpawnedMonster, visitor: Player
 
 	local closeness = 1 - math.clamp(distance / LAUGH_RANGE, 0, 1)
 	playScream(record.model, 0.2 + closeness * 0.8, 0.8 + closeness * 0.5)
-	if distance <= PROXIMITY_RANGE then
-		applyScare(record, visitor, root, monsterPart, "approaching_laugh")
+	if distance <= PROXIMITY_RANGE and tryApplyScare(record, visitor, root, monsterPart) then
+		finishScare(record, visitor, "approaching_laugh")
 	end
 end
 

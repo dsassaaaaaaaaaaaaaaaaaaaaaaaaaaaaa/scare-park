@@ -18,6 +18,7 @@ export type SpawnedMonster = {
 	model: Model,
 	owner: Player,
 	entry: any, -- MonsterEntry из профиля
+	homeCFrame: CFrame,
 }
 
 local spawned: { [string]: SpawnedMonster } = {} -- monsterUid → спавн
@@ -29,11 +30,12 @@ function MonsterRuntime.Spawn(owner: Player, entry: any, slotPart: BasePart?)
 		return -- карты нет — физический спавн невозможен
 	end
 	local model = MonsterModelFactory.GetModel(entry.id)
-	model:PivotTo(slotPart.CFrame + Vector3.new(0, 3, 0))
+	local homeCFrame = slotPart.CFrame + Vector3.new(0, 3, 0)
+	model:PivotTo(homeCFrame)
 	model:SetAttribute("MonsterUid", entry.uid)
 	model:SetAttribute("OwnerUserId", owner.UserId)
 	model.Parent = slotPart.Parent
-	spawned[entry.uid] = { model = model, owner = owner, entry = entry }
+	spawned[entry.uid] = { model = model, owner = owner, entry = entry, homeCFrame = homeCFrame }
 end
 
 function MonsterRuntime.Despawn(monsterUid: string)

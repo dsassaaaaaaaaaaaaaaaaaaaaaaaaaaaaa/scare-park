@@ -30,4 +30,18 @@ return function(Runner)
 			Runner.expectEqual(ScareMechanicLogic.Resolve(mechanicId), mechanicId)
 		end
 	end)
+
+	Runner.test("Scare mechanic roam offsets are clamped to home radius", function()
+		local inside = ScareMechanicLogic.ClampRoamOffset(6, 8, 12)
+		Runner.expectEqual(inside.clamped, false)
+		Runner.expectEqual(inside.distance, 10)
+		Runner.expectEqual(inside.x, 6)
+		Runner.expectEqual(inside.z, 8)
+
+		local outside = ScareMechanicLogic.ClampRoamOffset(30, 40, 10)
+		Runner.expectEqual(outside.clamped, true)
+		Runner.expectEqual(outside.distance, 10)
+		Runner.expectEqual(outside.x, 6)
+		Runner.expectEqual(outside.z, 8)
+	end)
 end

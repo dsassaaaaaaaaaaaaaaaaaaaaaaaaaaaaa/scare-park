@@ -5,6 +5,13 @@ local ScareMechanicLogic = {}
 
 ScareMechanicLogic.FallbackId = "generic_proximity"
 
+export type RoamOffset = {
+	x: number,
+	z: number,
+	distance: number,
+	clamped: boolean,
+}
+
 local implemented: { [string]: boolean } = {
 	generic_proximity = true,
 	chase_pop = true,
@@ -43,16 +50,33 @@ function ScareMechanicLogic.Resolve(mechanicId: string?): string
 	return ScareMechanicLogic.FallbackId
 end
 
-function ScareMechanicLogic.GetKnownMechanicIds(): { string }
-	local ids: { string } = {}
-	for id in implemented do
-		table.insert(ids, id)
+function ScareMechanicLogic.ClampRoamOffset(dx: number, dz: number, maxDistance: number): RoamOffset
+	local distance = math.sqrt(dx * dx + dz * dz)
+	if distance <= maxDistance or distance == 0 then
+		return {
+			x = dx,
+			z = dz,
+			distance = distance,
+			clamped = false,
+		}
 	end
-	for id in todoFallback do
-		table.insert(ids, id)
+
+	if maxDistance <= 0 then
+		return {
+			x = 0,
+			z = 0,
+			distance = 0,
+			clamped = true,
+		}
 	end
-	table.sort(ids)
-	return ids
+
+	local scale = maxDistance / distance
+	return {
+		x = dx * scale,
+		z = dz * scale,
+		distance = maxDistance,
+		clamped = true,
+	}
 end
 
 return ScareMechanicLogic
