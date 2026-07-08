@@ -58,39 +58,39 @@ function ScareService.StartVisit(visitor: Player, host: Player): boolean
 end
 
 --- Урон храбрости в % от монстра. Вызывается СЕРВЕРНОЙ логикой монстра (триггеры),
---- НЕ клиентом напрямую. Возвращает true, если посетитель сбежал.
+--- НЕ клиентом напрямую. Возвращает escaped, applied.
 function ScareService.ApplyScare(
 	visitor: Player,
 	ownerUid: string,
 	monsterEntry: any,
 	visitorPosition: Vector3?,
 	monsterPosition: Vector3?
-): boolean
+): (boolean, boolean)
 	local visit = visits[visitor]
 	if visit == nil then
-		return false
+		return false, false
 	end
 
 	-- кулдаун монстра по этому посетителю
 	local last = visit.scareCooldowns[ownerUid]
 	if last and os.clock() - last < MONSTER_COOLDOWN then
-		return false
+		return false, false
 	end
 	-- валидация дистанции (если есть физические позиции)
 	if visitorPosition and monsterPosition and (visitorPosition - monsterPosition).Magnitude > SCARE_RANGE then
-		return false
+		return false, false
 	end
 	visit.scareCooldowns[ownerUid] = os.clock()
 
 	local def = MonsterCatalog[monsterEntry.id]
 	local baseScare = if def then def.baseScare else 30
-	-- урон: % от максимума, зависит от редкости (baseScare/5 ≈ 1..36%)
-	local damagePct = math.clamp(baseScare / 5, 1, 60)
 
 	-- множители мутации и престижа
 	local mutation = monsterEntry.mutation and GameConfig.Mutations[monsterEntry.mutation]
 	local mutationMult = if mutation then mutation.multiplier else 1
 	local prestigeMult = 1 + (monsterEntry.primeStars or 0) * GameConfig.Prestige.ScareBonusPerStar
+	-- урон: % от максимума, зависит от baseScare каталога и текущих усилений монстра.
+	local damagePct = math.clamp((baseScare * mutationMult * prestigeMult) / 5, 1, 60)
 
 	-- экскурсионный режим: пол храбрости 10%
 	local visitorData = DataService.Get(visitor)
@@ -118,9 +118,9 @@ function ScareService.ApplyScare(
 
 	if visit.courage <= 0 then
 		ScareService.EndVisit(visitor, true)
-		return true
+		return true, true
 	end
-	return false
+	return false, true
 end
 
 --- Обновить прогресс прохождения (0..1) — вызывается чекпоинтами аттракциона

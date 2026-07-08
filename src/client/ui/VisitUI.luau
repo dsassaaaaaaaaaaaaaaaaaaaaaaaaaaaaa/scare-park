@@ -46,7 +46,7 @@ local function onVisitButton()
 end
 
 --- Вспышка скримера: затемнение + имя монстра. Урон уже применён сервером.
-local function playScareEffect(monsterId: string, _mechanic: string)
+local function playScareEffect(monsterId: string, mechanic: string)
 	local flash = flashFrame
 	if flash == nil then
 		return
@@ -54,14 +54,28 @@ local function playScareEffect(monsterId: string, _mechanic: string)
 	local def = MonsterCatalog[monsterId]
 	local label = flash:FindFirstChildWhichIsA("TextLabel")
 	if label then
-		label.Text = if def then `😱 {def.name}!` else "😱"
+		if mechanic == "move_when_unseen" then
+			label.Text = if def then `👁 НЕ МОРГАЙ: {def.name}` else "👁 НЕ МОРГАЙ"
+		elseif mechanic == "blink_teleport" then
+			label.Text = if def then `⚡ ЗА СПИНОЙ: {def.name}` else "⚡ ЗА СПИНОЙ"
+		elseif mechanic == "approaching_laugh" then
+			label.Text = if def then `😂 {def.name} уже рядом` else "😂 уже рядом"
+		else
+			label.Text = if def then `😱 {def.name}!` else "😱"
+		end
 	end
-	flash.BackgroundTransparency = 0.3
+	flash.BackgroundColor3 = if mechanic == "lights_out_jump"
+		then Color3.new(0, 0, 0)
+		elseif mechanic == "chase_pop" then Color3.fromRGB(80, 0, 0)
+		elseif mechanic == "approaching_laugh" then Color3.fromRGB(45, 0, 60)
+		else Color3.new(0, 0, 0)
+	flash.BackgroundTransparency = if mechanic == "lights_out_jump" then 0.05 else 0.3
 	flash.Visible = true
-	TweenService:Create(flash, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+	local fadeTime = if mechanic == "lights_out_jump" then 1.4 else 0.8
+	TweenService:Create(flash, TweenInfo.new(fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		BackgroundTransparency = 1,
 	}):Play()
-	task.delay(0.9, function()
+	task.delay(fadeTime + 0.1, function()
 		flash.Visible = false
 	end)
 	-- TODO: звук скримера (60% испуга!) — SoundId из каталога, когда появятся ассеты
