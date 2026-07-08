@@ -23,7 +23,6 @@ function FusionLogic.RecipeKey(monsterIds: { string }): string
 	return table.concat(sorted, "+")
 end
 
-
 function FusionLogic.GetRegularResultRarity(config: any, monsters: { any }): (string?, string?)
 	local rarityIndex = buildRarityIndex(config)
 	local rarity = monsters[1].rarity
