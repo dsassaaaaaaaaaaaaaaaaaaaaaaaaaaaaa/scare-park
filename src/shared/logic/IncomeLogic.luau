@@ -31,6 +31,8 @@ function IncomeLogic.Credit(data: any, rawAmount: number): number
 	local whole = math.floor(withRemainder)
 	data.income.remainder = withRemainder - whole
 	if whole > 0 then
+		-- Pure testable logic mutates the in-memory profile table directly; IncomeService is
+		-- still the only runtime caller that obtains profiles and emits currency side effects.
 		data.coins += whole
 	end
 	return whole

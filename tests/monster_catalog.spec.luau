@@ -1,8 +1,9 @@
 local GameConfig = require("../src/shared/GameConfig")
 local MonsterCatalog = require("../src/shared/MonsterCatalog")
+local SecretConfig = require("../src/server/config/SecretConfig")
 
 return function(Runner)
-	Runner.test("MonsterCatalog has exactly 15 public launch monsters with valid ids", function()
+	Runner.test("MonsterCatalog has exactly 17 public monsters with valid ids", function()
 		local rarityAllowed = {}
 		for _, rarity in ipairs(GameConfig.Rarities) do
 			rarityAllowed[rarity] = true
@@ -21,6 +22,12 @@ return function(Runner)
 			Runner.expect(def.baseIncome > 0, "baseIncome must be positive for " .. def.id)
 		end
 
-		Runner.expectEqual(count, 15)
+		Runner.expectEqual(count, 17)
+	end)
+
+	Runner.test("MonsterCatalog contains every secret fusion recipe result", function()
+		for _, resultId in pairs(SecretConfig.FusionRecipes) do
+			Runner.expect(MonsterCatalog[resultId] ~= nil, "secret fusion recipe result must exist in catalog")
+		end
 	end)
 end

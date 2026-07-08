@@ -133,6 +133,24 @@ local MonsterCatalog: { [string]: MonsterDef } = {
 		baseIncome = 50,
 		baseScare = 180,
 	},
+	-- Nightmare-боссы: получаются ТОЛЬКО по секретным рецептам (рецепты — на сервере).
+	-- Имена публичны (игрок владеет и видит), пути получения — нет. Доход по economy §4 п.5.
+	scream_symphony = {
+		id = "scream_symphony",
+		name = "Симфония Криков",
+		rarity = "Nightmare",
+		scareMechanic = "sync_scream_volley",
+		baseIncome = 130,
+		baseScare = 400,
+	},
+	anti_mime = {
+		id = "anti_mime",
+		name = "АнтиМим",
+		rarity = "Nightmare",
+		scareMechanic = "move_when_unseen",
+		baseIncome = 130,
+		baseScare = 400,
+	},
 }
 
 return MonsterCatalog

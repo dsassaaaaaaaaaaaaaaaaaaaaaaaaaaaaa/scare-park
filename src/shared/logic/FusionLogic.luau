@@ -23,26 +23,6 @@ function FusionLogic.RecipeKey(monsterIds: { string }): string
 	return table.concat(sorted, "+")
 end
 
-function FusionLogic.GetDominantRarity(monsters: { any }, config: any): string?
-	local counts: { [string]: number } = {}
-	for _, monster in monsters do
-		counts[monster.rarity] = (counts[monster.rarity] or 0) + 1
-	end
-
-	local rarityIndex = buildRarityIndex(config)
-	local bestRarity: string? = nil
-	local bestCount = 0
-	local bestIndex = 0
-	for rarity, count in counts do
-		local index = rarityIndex[rarity] or 0
-		if count > bestCount or (count == bestCount and index > bestIndex) then
-			bestRarity = rarity
-			bestCount = count
-			bestIndex = index
-		end
-	end
-	return bestRarity
-end
 
 function FusionLogic.GetRegularResultRarity(config: any, monsters: { any }): (string?, string?)
 	local rarityIndex = buildRarityIndex(config)
@@ -151,6 +131,8 @@ function FusionLogic.StartFusion(
 		return false, nil, "not_enough_coins"
 	end
 
+	-- Pure testable logic mutates the in-memory profile table directly; runtime services remain the
+	-- single place that obtains profiles and notifies clients around DataService-owned currency changes.
 	data.coins -= fee
 
 	local selectedUids: { [string]: boolean } = {}
